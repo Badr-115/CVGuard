@@ -41,14 +41,14 @@ export default function App() {
     if (token) refresh();
   }, [token, search]);
 
-  if (!token) {
-    return <Auth onLogin={(next) => { localStorage.setItem("access_token", next); setToken(next); }} />;
-  }
-
   const averageScore = useMemo(() => {
     const scored = candidates.filter((candidate) => candidate.score != null);
     return scored.length ? Math.round(scored.reduce((sum, c) => sum + (c.score || 0), 0) / scored.length) : null;
   }, [candidates]);
+
+  if (!token) {
+    return <Auth onLogin={(next) => { localStorage.setItem("access_token", next); setToken(next); }} />;
+  }
 
   function signOut() {
     localStorage.removeItem("access_token");

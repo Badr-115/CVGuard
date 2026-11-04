@@ -38,3 +38,59 @@ jobs:
       # Lockfile does not exist yet; add one and replace this with npm ci.
       - run: npm install --no-audit --no-fund
       - run: npm run build
+
+  chromium-postgres-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cvguard
+          POSTGRES_PASSWORD: smoke_test_password
+          POSTGRES_DB: cvguard
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cvguard -d cvguard"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql+psycopg://cvguard:smoke_test_password@127.0.0.1:5432/cvguard
+      JWT_SECRET: e2e-not-for-production-testing-secret-32-char
+      CORS_ORIGINS: http://127.0.0.1:5173
+      VITE_API_URL: http://127.0.0.1:8000/api/v1
+      APP_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python -m pip install -r backend/requirements.txt 'playwright>=1.51,<2'
+      - run: python -m playwright install --with-deps chromium
+      - run: npm install --no-audit --no-fund
+        working-directory: frontend
+      - run: python -m alembic upgrade head
+        working-directory: backend
+      - name: Start real servers and exercise browser
+        shell: bash
+        run: |
+          (cd backend && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000) > /tmp/cvguard-api.log 2>&1 &
+          (cd frontend && npm run dev -- --host 127.0.0.1) > /tmp/cvguard-vite.log 2>&1 &
+          trap 'cat /tmp/cvguard-api.log /tmp/cvguard-vite.log' EXIT
+          python - <<'PY'
+          import time, urllib.request
+          for _ in range(80):
+              try:
+                  urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=1)
+                  urllib.request.urlopen("http://127.0.0.1:5173/", timeout=1)
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise RuntimeError("CVGuard servers did not become ready")
+          PY
+          python scripts/browser_smoke.py
