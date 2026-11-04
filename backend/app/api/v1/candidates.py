@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
@@ -47,26 +49,32 @@ async def create_candidate(
     if resume:
         path, text = await save_resume(resume)
 
-    score = None
-    if job:
-        skills = job.required_skills.split("||") if "||" in job.required_skills else job.required_skills.split(",")
-        skills = [x.strip() for x in skills if x.strip()]
-        score = explain_score(text, skills, job.description)["score"]
+    try:
+        score = None
+        if job:
+            skills = job.required_skills.split("||") if "||" in job.required_skills else job.required_skills.split(",")
+            skills = [x.strip() for x in skills if x.strip()]
+            score = explain_score(text, skills, job.description)["score"]
 
-    candidate = Candidate(
-        organization_id=user.organization_id,
-        name=name,
-        email=email,
-        phone=phone.strip(),
-        resume_path=path,
-        resume_text=text,
-        score=score,
-    )
-    db.add(candidate)
-    db.commit()
-    db.refresh(candidate)
+        candidate = Candidate(
+            organization_id=user.organization_id,
+            name=name,
+            email=email,
+            phone=phone.strip(),
+            resume_path=path,
+            resume_text=text,
+            score=score,
+        )
+        db.add(candidate)
+        db.commit()
+        db.refresh(candidate)
+    except Exception:
+        # The file must not remain on disk when a transaction or scoring fails.
+        db.rollback()
+        if path:
+            Path(path).unlink(missing_ok=True)
+        raise
     return serialize_candidate(candidate)
-
 
 @router.get("")
 def list_candidates(

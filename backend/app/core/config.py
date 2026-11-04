@@ -1,5 +1,5 @@
 from functools import lru_cache
-from pydantic import computed_field, field_validator
+from pydantic import computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,6 +20,16 @@ class Settings(BaseSettings):
         extra="ignore",
         case_sensitive=False,
     )
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self):
+        if self.app_env.lower() in {"production", "prod"}:
+            if (self.jwt_secret == "change-me-in-production"
+                    or len(self.jwt_secret) < 32):
+                raise ValueError("Production JWT_SECRET must be a unique secret of at least 32 characters")
+            if "cvguard:cvguard@" in self.database_url:
+                raise ValueError("The example database password is forbidden in production")
+        return self
 
     @computed_field
     @property

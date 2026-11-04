@@ -114,3 +114,12 @@ Tests use an isolated SQLite database and cover health, authentication, jobs, te
 ## License
 
 See `LICENSE`.
+
+
+## Review status and data protection
+
+**Portfolio demo — not approved for real applicant data or commercial production.** The API demonstrates organization-scoped access, password hashing and explainable deterministic resume matching; it does not make hiring decisions. The deterministic provider is not a hosted AI integration.
+
+Before real recruitment use: replace all example credentials, configure trusted HTTPS/proxy headers, add rate limiting and monitoring, set retention/deletion policies for resume files and extracted text, add malware scanning and external storage, and conduct a proper threat-model review plus hosted-PostgreSQL integration/E2E testing. Never commit `.env` or actual resumes to Git.
+
+For a reproducible quality check, inspect GitHub Actions for the exact commit. Backend tests and frontend build are automated; their passing does not prove complete production readiness.
