@@ -47,6 +47,9 @@ async def save_resume(upload: UploadFile) -> tuple[str, str]:
             reader = PdfReader(str(path))
             if reader.is_encrypted:
                 raise HTTPException(400, "Encrypted PDF files are not supported.")
+            # A small file can still contain very many pages and exhaust parser resources.
+            if len(reader.pages) > 50:
+                raise HTTPException(400, "PDF resumes must contain 50 pages or fewer.")
             text = "\n".join(page.extract_text() or "" for page in reader.pages)
         else:
             doc = Document(str(path))
