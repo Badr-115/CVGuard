@@ -1,0 +1,22 @@
+# Credentials and local runtime data
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+test.db
+storage/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Frontend
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+.DS_Store
